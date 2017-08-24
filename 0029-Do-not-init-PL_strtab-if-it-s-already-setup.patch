@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Todd Rinaldo <toddr@cpanel.net>
+Date: Thu, 6 Oct 2016 17:14:53 -0500
+Subject: [PATCH 29/54] Do not init PL_strtab if it's already setup
+
+---
+ SOURCES/perl/perl.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/SOURCES/perl/perl.c b/SOURCES/perl/perl.c
+index 7b43bc57..e919efe5 100644
+--- a/SOURCES/perl/perl.c
++++ b/SOURCES/perl/perl.c
+@@ -299,10 +299,12 @@ perl_construct(pTHXx)
+     /* Note that strtab is a rather special HV.  Assumptions are made
+        about not iterating on it, and not adding tie magic to it.
+        It is properly deallocated in perl_destruct() */
+-    PL_strtab = newHV();
++    if(!PL_strtab) {
++        PL_strtab = newHV();
+ 
+-    HvSHAREKEYS_off(PL_strtab);			/* mandatory */
+-    hv_ksplit(PL_strtab, 512);
++        HvSHAREKEYS_off(PL_strtab);			/* mandatory */
++        hv_ksplit(PL_strtab, 512);
++    }
+ 
+     Zero(PL_sv_consts, SV_CONSTS_COUNT, SV*);
+ 
