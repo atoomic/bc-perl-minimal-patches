@@ -1,0 +1,83 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Todd Rinaldo <toddr@cpanel.net>
+Date: Wed, 26 Apr 2017 18:08:02 -0500
+Subject: [PATCH 20/30] Fix B logic to not add unnecessary deps
+
+https://rt.perl.org/Public/Bug/Display.html?id=130087
+---
+ SOURCES/perl/ext/B/B.pm             | 8 ++++++--
+ SOURCES/perl/ext/B/O.pm             | 9 ++++-----
+ SOURCES/perl/ext/B/t/OptreeCheck.pm | 3 ++-
+ 3 files changed, 12 insertions(+), 8 deletions(-)
+
+diff --git a/SOURCES/perl/ext/B/B.pm b/SOURCES/perl/ext/B/B.pm
+index 5ea96fa2..c375523a 100644
+--- a/SOURCES/perl/ext/B/B.pm
++++ b/SOURCES/perl/ext/B/B.pm
+@@ -6,11 +6,15 @@
+ #      License or the Artistic License, as specified in the README file.
+ #
+ package B;
+-use strict;
+ 
+-require Exporter;
+ @B::ISA = qw(Exporter);
+ 
++sub import {
++    return unless scalar @_ > 1; # Called as a method call.
++    require Exporter;
++    B->export_to_level(1, @_);
++}
++
+ # walkoptree_slow comes from B.pm (you are there),
+ # walkoptree comes from B.xs
+ 
+diff --git a/SOURCES/perl/ext/B/O.pm b/SOURCES/perl/ext/B/O.pm
+index 2976a894..f8574223 100644
+--- a/SOURCES/perl/ext/B/O.pm
++++ b/SOURCES/perl/ext/B/O.pm
+@@ -2,8 +2,7 @@ package O;
+ 
+ our $VERSION = '1.01';
+ 
+-use B qw(minus_c save_BEGINs);
+-use Carp;
++use B qw();
+ 
+ sub import {
+     my ($class, @options) = @_;
+@@ -21,8 +20,8 @@ sub import {
+     my $backend = shift (@options);
+     eval q[
+ 	BEGIN {
+-	    minus_c;
+-	    save_BEGINs;
++	    B::minus_c;
++	    B::save_BEGINs;
+ 	}
+ 
+ 	CHECK {
+@@ -38,7 +37,7 @@ sub import {
+ 	    # nice. Thanks. --smcc
+ 	    use B::].$backend.q[ ();
+ 	    if ($@) {
+-		croak "use of backend $backend failed: $@";
++		die("use of backend $backend failed: $@");
+ 	    }
+ 
+ 
+diff --git a/SOURCES/perl/ext/B/t/OptreeCheck.pm b/SOURCES/perl/ext/B/t/OptreeCheck.pm
+index e7af99ec..34d01e15 100644
+--- a/SOURCES/perl/ext/B/t/OptreeCheck.pm
++++ b/SOURCES/perl/ext/B/t/OptreeCheck.pm
+@@ -781,8 +781,9 @@ sub reduceDiffs {
+         my $exp = shift @want;
+         my $line = shift @got;
+         # remove matches, and report
+-        unless ($got =~ s/($rex\n)//msg) {
++        unless ($got =~ s/^($rex\n)//ms) {
+             _diag("got:\t\t'$line'\nwant:\t $rex\n");
++            last;
+         }
+     }
+     _diag("remainder:\n$got");
