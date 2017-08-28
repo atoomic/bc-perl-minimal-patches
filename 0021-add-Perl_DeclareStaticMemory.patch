@@ -1,29 +1,29 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From b6d5c96abe62ee3ae39dccde809f45a7fc25ef4e Mon Sep 17 00:00:00 2001
 From: Nicolas Rochelemagne <rochelemagne@cpanel.net>
 Date: Mon, 12 Jun 2017 11:38:23 -0600
-Subject: [PATCH 21/30] add Perl_DeclareStaticMemory
+Subject: [PATCH] add Perl_DeclareStaticMemory
 
 run make regen_headers to update
-embed.h
-embedvar.h
-proto.h
+SOURCES/perl/embed.h
+SOURCES/perl/embedvar.h
+SOURCES/perl/proto.h
 ---
  SOURCES/perl/embed.fnc  |  1 +
  SOURCES/perl/embed.h    |  1 +
- SOURCES/perl/embedvar.h |  3 ++
- SOURCES/perl/handy.h    |  4 +++
- SOURCES/perl/intrpvar.h |  5 ++++
- SOURCES/perl/iperlsys.h |  6 ++--
+ SOURCES/perl/embedvar.h |  3 +++
+ SOURCES/perl/handy.h    |  4 ++++
+ SOURCES/perl/intrpvar.h |  5 +++++
+ SOURCES/perl/iperlsys.h |  6 +++---
  SOURCES/perl/proto.h    |  1 +
- SOURCES/perl/util.c     | 76 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ SOURCES/perl/util.c     | 70 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
  SOURCES/perl/util.h     |  2 ++
- 9 files changed, 95 insertions(+), 4 deletions(-)
+ 9 files changed, 89 insertions(+), 4 deletions(-)
 
 diff --git a/SOURCES/perl/embed.fnc b/SOURCES/perl/embed.fnc
-index 654dad99..ea2aa93e 100644
+index 38e8cf9347..aa35cb0057 100644
 --- a/SOURCES/perl/embed.fnc
 +++ b/SOURCES/perl/embed.fnc
-@@ -1897,6 +1897,7 @@ Ap	|int	|get_mstats	|NN perl_mstats_t *buf|int buflen|int level
+@@ -1776,6 +1776,7 @@ Ap	|int	|get_mstats	|NN perl_mstats_t *buf|int buflen|int level
  Anpa	|Malloc_t|safesysmalloc	|MEM_SIZE nbytes
  Anpa	|Malloc_t|safesyscalloc	|MEM_SIZE elements|MEM_SIZE size
  AnpR	|Malloc_t|safesysrealloc|Malloc_t where|MEM_SIZE nbytes
@@ -32,7 +32,7 @@ index 654dad99..ea2aa93e 100644
  Asrnx	|void	|croak_memory_wrap
  #if defined(PERL_GLOBAL_STRUCT)
 diff --git a/SOURCES/perl/embed.h b/SOURCES/perl/embed.h
-index 5352f536..5d95dfcb 100644
+index f3a855e9e4..ccb08971ee 100644
 --- a/SOURCES/perl/embed.h
 +++ b/SOURCES/perl/embed.h
 @@ -26,6 +26,7 @@
@@ -41,13 +41,13 @@ index 5352f536..5d95dfcb 100644
  
 +#define DeclareStaticMemory    Perl_DeclareStaticMemory
  #define Gv_AMupdate(a,b)	Perl_Gv_AMupdate(aTHX_ a,b)
- #define _force_out_malformed_utf8_message(a,b,c,d)	Perl__force_out_malformed_utf8_message(aTHX_ a,b,c,d)
  #define _is_in_locale_category(a,b)	Perl__is_in_locale_category(aTHX_ a,b)
+ #define _is_uni_FOO(a,b)	Perl__is_uni_FOO(aTHX_ a,b)
 diff --git a/SOURCES/perl/embedvar.h b/SOURCES/perl/embedvar.h
-index a33f213e..d7697d97 100644
+index 18f2c99547..fd3e971377 100644
 --- a/SOURCES/perl/embedvar.h
 +++ b/SOURCES/perl/embedvar.h
-@@ -302,6 +302,9 @@
+@@ -299,6 +299,9 @@
  #define PL_statbuf		(vTHX->Istatbuf)
  #define PL_statcache		(vTHX->Istatcache)
  #define PL_statgv		(vTHX->Istatgv)
@@ -58,10 +58,10 @@ index a33f213e..d7697d97 100644
  #define PL_statusvalue		(vTHX->Istatusvalue)
  #define PL_statusvalue_posix	(vTHX->Istatusvalue_posix)
 diff --git a/SOURCES/perl/handy.h b/SOURCES/perl/handy.h
-index 80f9cf4b..e8d8182f 100644
+index fc68736e4b..37c54eb927 100644
 --- a/SOURCES/perl/handy.h
 +++ b/SOURCES/perl/handy.h
-@@ -2390,6 +2390,10 @@ void Perl_mem_log_del_sv(const SV *sv, const char *filename, const int linenumbe
+@@ -2092,6 +2092,10 @@ void Perl_mem_log_del_sv(const SV *sv, const char *filename, const int linenumbe
  #define Newxc(v,n,t,c)	(v = (MEM_WRAP_CHECK_(n,t) (c*)MEM_LOG_ALLOC(n,t,safemalloc((MEM_SIZE)((n)*sizeof(t))))))
  #define Newxz(v,n,t)	(v = (MEM_WRAP_CHECK_(n,t) (t*)MEM_LOG_ALLOC(n,t,safecalloc((n),sizeof(t)))))
  
@@ -73,10 +73,10 @@ index 80f9cf4b..e8d8182f 100644
  /* pre 5.9.x compatibility */
  #define New(x,v,n,t)	Newx(v,n,t)
 diff --git a/SOURCES/perl/intrpvar.h b/SOURCES/perl/intrpvar.h
-index d2038553..db9d62b8 100644
+index 3f43fd9c63..7860ec047b 100644
 --- a/SOURCES/perl/intrpvar.h
 +++ b/SOURCES/perl/intrpvar.h
-@@ -814,6 +814,11 @@ PERLVAR(I, random_state, PL_RANDOM_STATE_TYPE)
+@@ -809,6 +809,11 @@ PERLVAR(I, random_state, PL_RANDOM_STATE_TYPE)
  
  PERLVARI(I, dump_re_max_len, STRLEN, 0)
  
@@ -89,7 +89,7 @@ index d2038553..db9d62b8 100644
   * above on where there are gaps which currently will be structure padding.  */
  
 diff --git a/SOURCES/perl/iperlsys.h b/SOURCES/perl/iperlsys.h
-index 86ab687f..5fcb315a 100644
+index 86ab687fce..5fcb315a46 100644
 --- a/SOURCES/perl/iperlsys.h
 +++ b/SOURCES/perl/iperlsys.h
 @@ -832,7 +832,7 @@ struct IPerlMemInfo
@@ -120,7 +120,7 @@ index 86ab687f..5fcb315a 100644
  #define PerlMemShared_get_lock()		
  #define PerlMemShared_free_lock()
 diff --git a/SOURCES/perl/proto.h b/SOURCES/perl/proto.h
-index f1d6181b..6dd79308 100644
+index 9047bc638b..2cd87cb5e9 100644
 --- a/SOURCES/perl/proto.h
 +++ b/SOURCES/perl/proto.h
 @@ -24,6 +24,7 @@ PERL_CALLCONV UV	ASCII_TO_NEED(const UV enc, const UV ch)
@@ -132,7 +132,7 @@ index f1d6181b..6dd79308 100644
  #define PERL_ARGS_ASSERT_GV_AMUPDATE	\
  	assert(stash)
 diff --git a/SOURCES/perl/util.c b/SOURCES/perl/util.c
-index b324af43..02095c59 100644
+index 5e34a54698..a56d646862 100644
 --- a/SOURCES/perl/util.c
 +++ b/SOURCES/perl/util.c
 @@ -200,6 +200,64 @@ Perl_safesysmalloc(MEM_SIZE size)
@@ -219,24 +219,11 @@ index b324af43..02095c59 100644
  #endif
  	PERL_ALLOC_CHECK(ptr);
  
-@@ -334,6 +402,12 @@ Perl_safesysfree(Malloc_t where)
-     dTHX;
- #endif
-     DEBUG_m( PerlIO_printf(Perl_debug_log, "0x%" UVxf ": (%05ld) free\n",PTR2UV(where),(long)PL_an++));
-+
-+    /* no free when memory is in static known territory */
-+    /* PL_static_memory_from is not necessary but avoid a function call when not necessary */
-+    if ( PL_static_memory_from && _check_static_memory_address(where) )
-+		return;
-+
-     if (where) {
- #ifdef USE_MDH
- 	Malloc_t where_intrn = (Malloc_t)((char*)where-PERL_MEMORY_DEBUG_HEADER_SIZE);
 diff --git a/SOURCES/perl/util.h b/SOURCES/perl/util.h
-index 12a1c470..0818a85f 100644
+index 8f4171bebc..295d7cab42 100644
 --- a/SOURCES/perl/util.h
 +++ b/SOURCES/perl/util.h
-@@ -201,6 +201,8 @@ means arg not present, 1 is empty string/null byte */
+@@ -197,6 +197,8 @@ means arg not present, 1 is empty string/null byte */
  #define HS_GETXSVERLEN(key) ((key) >> 8 & 0xFF)
  #define HS_GETAPIVERLEN(key) ((key) & HSm_APIVERLEN)
  
@@ -245,3 +232,6 @@ index 12a1c470..0818a85f 100644
  /* internal to util.h macro to create a packed handshake key, all args must be constants */
  /* U32 return = (U16 interpsize, bool cxt, bool setxsubfn, bool popmark,
     U5 (FIVE!) apiverlen, U8 xsverlen) */
+-- 
+2.14.1
+
